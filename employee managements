@@ -1,0 +1,594 @@
+import java.sql.*;
+import java.util.*;
+import javax.swing.*;
+import javax.swing.Timer;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+//front screen//
+class SplashScreen extends JFrame {
+    JLabel welcomeLabel;
+
+    SplashScreen() {
+        setTitle("Welcome");
+        setSize(600, 400);
+        setLocationRelativeTo(null);  
+        setUndecorated(true);  
+        setLayout(new BorderLayout());
+        welcomeLabel = new JLabel("Welcome to Employee Management System", JLabel.CENTER);
+        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        welcomeLabel.setForeground(new Color(25, 25, 112));
+        add(welcomeLabel, BorderLayout.CENTER);
+        setVisible(true);
+        Timer timer = new Timer(3000, e -> {
+            dispose();  
+            new LoginScreen();          });
+        timer.setRepeats(false);  
+        timer.start();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SplashScreen());
+    }
+}
+class LoginScreen extends JFrame implements ActionListener {
+    JTextField usernameField;
+    JPasswordField passwordField;
+    JButton loginButton;
+    JLabel messageLabel;
+
+    LoginScreen() {
+        setTitle("Login");
+        setSize(300, 200);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new GridLayout(4, 1, 10, 10));
+
+        usernameField = new JTextField(10);
+        passwordField = new JPasswordField(10);
+        loginButton = new JButton("Login");
+        messageLabel = new JLabel("", JLabel.CENTER);
+
+        loginButton.addActionListener(this);
+
+        add(new JLabel("Username:", JLabel.CENTER));
+        add(usernameField);
+        add(new JLabel("Password:", JLabel.CENTER));
+        add(passwordField);
+        add(loginButton);
+        add(messageLabel);
+
+        setVisible(true);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        String username = usernameField.getText();
+        String password = new String(passwordField.getPassword());
+
+        if (authenticate(username, password)) {
+            new EmployeeManagementSystem();
+            dispose();  
+        } else {
+            messageLabel.setText("Invalid credentials!");
+        }
+    }
+
+    private boolean authenticate(String username, String password) {
+        return username.equals("swapnil") && password.equals("1609");
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new LoginScreen());
+    }
+}
+//class using data structure//
+class SimpleHashMap<K, V> {
+
+    // Array of linked lists (buckets) to handle collisions
+    private LinkedList<Entry<K, V>>[] buckets;
+    private int capacity;
+
+    // Constructor
+    public SimpleHashMap(int capacity) {
+        this.capacity = capacity;
+        buckets = new LinkedList[capacity];
+
+        for (int i = 0; i < capacity; i++) {
+            buckets[i] = new LinkedList<>();
+        }
+    }
+
+    // Custom put method
+    public void put(K key, V value) {
+        int index = getBucketIndex(key);
+
+        LinkedList<Entry<K, V>> bucket = buckets[index];
+
+        // Check if the key already exists in the bucket
+        for (Entry<K, V> entry : bucket) {
+            if (entry.key.equals(key)) {
+                entry.value = value;  // Update the value if key exists
+                return;
+            }
+        }
+
+        // If the key doesn't exist, add a new entry
+        bucket.add(new Entry<>(key, value));
+    }
+
+    // Custom get method to retrieve values
+    public V get(K key) {
+        int index = getBucketIndex(key);
+
+        LinkedList<Entry<K, V>> bucket = buckets[index];
+
+        // Search for the key in the bucket
+        for (Entry<K, V> entry : bucket) {
+            if (entry.key.equals(key)) {
+                return entry.value;
+            }
+        }
+
+        return null;  // Return null if the key is not found
+    }
+
+    // Helper method to calculate the bucket index
+    private int getBucketIndex(K key) {
+        return Math.abs(key.hashCode()) % capacity;
+    }
+
+    // Inner class to represent key-value pairs (entries)
+    private static class Entry<K, V> {
+        K key;
+        V value;
+
+        Entry(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+    // Method to write data to a file
+    public void writeToFile(String fileName) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            // Loop through all the buckets
+            for (LinkedList<Entry<K, V>> bucket : buckets) {
+                for (Entry<K, V> entry : bucket) {
+                    writer.write("Username: " + entry.key + ", Password: " + entry.value);
+                    writer.newLine();  // Write a new line after each entry
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+ class FileCreator {
+
+    public static void main(String[] args) {
+        SimpleHashMap<String, String> credentialsMap = new SimpleHashMap<>(10);
+
+        // Add some username-password pairs
+        credentialsMap.put("swapnil", "1609");
+
+        // Write the credentials to a file
+        credentialsMap.writeToFile("user_credentials.txt");
+
+        System.out.println("User credentials have been written to user_credentials.txt");
+    }
+}
+//main application//
+class EmployeeManagementSystem extends JFrame implements ActionListener {
+    static final String DB_URL = "jdbc:mysql://localhost/EmployeeDB?user=root&password=";
+
+    JTextField idField, nameField, ageField, departmentField, salaryField, searchField, dateField;
+    JComboBox<String> statusField, roleField;
+    JTextArea displayArea;
+    ArrayList<Employee> employeeList;
+
+    EmployeeManagementSystem() {
+        setTitle("Employee Management System");
+        setSize(800, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+
+        JPanel inputPanel = new JPanel(new GridLayout(0, 2, 10, 10));
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        inputPanel.setBackground(new Color(224, 255, 255));
+
+        employeeList = new ArrayList<>();
+
+        addFieldWithLabel(inputPanel, "Employee ID:", idField = new JTextField(10));
+        addFieldWithLabel(inputPanel, "Employee Name:", nameField = new JTextField(10));
+        addFieldWithLabel(inputPanel, "Employee Age:", ageField = new JTextField(10));
+        addFieldWithLabel(inputPanel, "Department:", departmentField = new JTextField(10));
+        addFieldWithLabel(inputPanel, "Salary:", salaryField = new JTextField(10));
+        addFieldWithLabel(inputPanel, "Role:", roleField = new JComboBox<>(new String[]{"Admin", "Manager", "Employee","Head Employee","HOD","CEO","Receptionist","Peon","Software Engineer","Marketing Specialist","Accountant","Junior Developer","Brand Manager"}));
+
+        JPanel buttonPanel = new JPanel(new GridLayout(0, 2, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        buttonPanel.setBackground(new Color(240, 255, 255));
+
+        addButton(buttonPanel, "Add Employee");
+        addButton(buttonPanel, "Update Employee");
+        addButton(buttonPanel, "Delete Employee");
+        addButton(buttonPanel, "Display Employees");
+        addButton(buttonPanel, "Search Employee");
+        addButton(buttonPanel, "Promote Employee");
+        addButton(buttonPanel, "Calculate Salary");
+        addButton(buttonPanel, "Export Data");
+        addButton(buttonPanel, "Mark Attendance");
+        addButton(buttonPanel, "View Attendance");
+        addButton(buttonPanel, "Add Leave");
+        addButton(buttonPanel, "Add Personal Info");
+
+        searchField = new JTextField(10);
+        buttonPanel.add(searchField);
+
+        dateField = new JTextField(10);
+        inputPanel.add(new JLabel("Date (YYYY-MM-DD):"));
+        inputPanel.add(dateField);
+
+        statusField = new JComboBox<>(new String[]{"Present", "Absent"});
+        inputPanel.add(new JLabel("Status:"));
+        inputPanel.add(statusField);
+
+        displayArea = new JTextArea(20, 50);
+        displayArea.setEditable(false);
+        displayArea.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        displayArea.setBackground(new Color(255, 250, 240));
+
+        add(inputPanel, BorderLayout.NORTH);
+        add(buttonPanel, BorderLayout.CENTER);
+        add(new JScrollPane(displayArea), BorderLayout.SOUTH);
+
+        setVisible(true);
+    }
+
+    private void addFieldWithLabel(JPanel panel, String labelText, JComponent component) {
+        JLabel label = new JLabel(labelText);
+        label.setForeground(new Color(70, 130, 180));
+        panel.add(label);
+        panel.add(component);
+    }
+
+    private void addButton(JPanel panel, String buttonText) {
+        JButton button = new JButton(buttonText);
+        button.addActionListener(this);
+        button.setPreferredSize(new Dimension(250, 700));  // Increased size
+         button.setFont(new Font("Arial", Font.BOLD, 10)); 
+        button.setBackground(new Color(176, 224, 230));
+        button.setForeground(new Color(25, 25, 112));
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(70, 130, 180)),
+                BorderFactory.createEmptyBorder(5, 15, 5, 15)
+        ));
+        panel.add(button);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        String command = e.getActionCommand();
+        String id = idField.getText();
+        String name = nameField.getText();
+        String ageText = ageField.getText();
+        String department = departmentField.getText();
+        String salaryText = salaryField.getText();
+        String date = dateField.getText();
+        String status = (String) statusField.getSelectedItem();
+        String role = (String) roleField.getSelectedItem();
+
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            if (command.equals("Add Employee")) {
+                int age = Integer.parseInt(ageText);
+                double salary = Double.parseDouble(salaryText);
+                Employee emp = new Employee(id, name, age, salary, department, role);
+                employeeList.add(emp);
+                addEmployeeToDB(conn, emp);
+                displayArea.setText("Employee added successfully!");
+            } else if (command.equals("Update Employee")) {
+                int age = Integer.parseInt(ageText);
+                double salary = Double.parseDouble(salaryText);
+                Employee emp = new Employee(id, name, age, salary, department, role);
+                updateEmployeeInDB(conn, emp);
+                displayArea.setText("Employee updated successfully!");
+            } else if (command.equals("Delete Employee")) {
+                deleteEmployeeFromDB(conn, id);
+                displayArea.setText("Employee deleted successfully!");
+            } else if (command.equals("Display Employees")) {
+                displayEmployees(conn);
+            } else if (command.equals("Search Employee")) {
+                searchEmployee(conn, searchField.getText());
+            } else if (command.equals("Promote Employee")) {
+                promoteEmployee(conn, id);
+            } else if (command.equals("Calculate Salary")) {
+                calculateDepartmentSalary(conn, department);
+            } else if (command.equals("Export Data")) {
+                exportData(conn);
+            } else if (command.equals("Mark Attendance")) {
+                markAttendance(conn, id, date, status);
+            } else if (command.equals("View Attendance")) {
+                viewAttendance(conn, id);
+            } else if (command.equals("Add Leave")) {
+                addLeave(conn, id, date);
+            }
+            else if (command.equals("Add Personal Info")) {
+                new PersonalInfoScreen(id);
+            }
+            
+        } catch (SQLException | NumberFormatException ex) {
+            ex.printStackTrace();
+            displayArea.setText("Error: " + ex.getMessage());
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+    }
+
+    private void addEmployeeToDB(Connection conn, Employee emp) throws SQLException {
+        String query = "INSERT INTO Employees (id, name, age, department, salary, role) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, emp.id);
+            pstmt.setString(2, emp.name);
+            pstmt.setInt(3, emp.age);
+            pstmt.setString(4, emp.department);
+            pstmt.setDouble(5, emp.salary);
+            pstmt.setString(6, emp.role);
+            pstmt.executeUpdate();
+        }
+    }
+
+    private void updateEmployeeInDB(Connection conn, Employee emp) throws SQLException {
+        String query = "UPDATE Employees SET name = ?, age = ?, department = ?, salary = ?, role = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, emp.name);
+            pstmt.setInt(2, emp.age);
+            pstmt.setString(3, emp.department);
+            pstmt.setDouble(4, emp.salary);
+            pstmt.setString(5, emp.role);
+            pstmt.setString(6, emp.id);
+            pstmt.executeUpdate();
+        }
+    }
+
+    private void deleteEmployeeFromDB(Connection conn, String id) throws SQLException {
+        String query = "DELETE FROM Employees WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, id);
+            pstmt.executeUpdate();
+        }
+    }
+
+    private void displayEmployees(Connection conn) throws SQLException {
+        String query = "SELECT * FROM Employees";
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            StringBuilder sb = new StringBuilder();
+            while (rs.next()) {
+                sb.append("ID: ").append(rs.getString("id")).append(", Name: ").append(rs.getString("name"))
+                  .append(", Age: ").append(rs.getInt("age")).append(", Department: ").append(rs.getString("department"))
+                  .append(", Salary: ").append(rs.getDouble("salary")).append(", Role: ").append(rs.getString("role")).append("\n");
+            }
+            displayArea.setText(sb.toString());
+        }
+    }
+
+    private void searchEmployee(Connection conn, String searchId) throws SQLException {
+        String query = "SELECT * FROM Employees WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, searchId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    displayArea.setText("ID: " + rs.getString("id") + ", Name: " + rs.getString("name") +
+                                        ", Age: " + rs.getInt("age") + ", Department: " + rs.getString("department") +
+                                        ", Salary: " + rs.getDouble("salary") + ", Role: " + rs.getString("role"));
+                } else {
+                    displayArea.setText("Employee not found.");
+                }
+            }
+        }
+    }
+
+    private void promoteEmployee(Connection conn, String id) throws SQLException {
+        String query = "UPDATE Employees SET role = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, "Manager");
+            pstmt.setString(2, id);
+            pstmt.executeUpdate();
+            displayArea.setText("Employee promoted to Manager!");
+        }
+    }
+
+    private void calculateDepartmentSalary(Connection conn, String department) throws SQLException {
+        String query = "SELECT SUM(salary) AS totalSalary FROM Employees WHERE department = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, department);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    displayArea.setText("Total salary for department " + department + ": " + rs.getDouble("totalSalary"));
+                }
+            }
+        }
+    }
+
+    private void exportData(Connection conn) throws SQLException, IOException {
+        String query = "SELECT * FROM Employees";
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(query);
+             BufferedWriter writer = new BufferedWriter(new FileWriter("employees.txt"))) {
+
+            while (rs.next()) {
+                writer.write("ID: " + rs.getString("id") + ", Name: " + rs.getString("name") +
+                             ", Age: " + rs.getInt("age") + ", Department: " + rs.getString("department") +
+                             ", Salary: " + rs.getDouble("salary") + ", Role: " + rs.getString("role"));
+                writer.newLine();
+            }
+            displayArea.setText("Data exported to employees.txt");
+        }
+    }
+
+    private void markAttendance(Connection conn, String id, String date, String status) throws SQLException {
+        String query = "INSERT INTO Attendance (employee_id, date, status) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, id);
+            pstmt.setString(2, date);
+            pstmt.setString(3, status);
+            pstmt.executeUpdate();
+            displayArea.setText("Attendance marked successfully!");
+        }
+    }
+
+    private void viewAttendance(Connection conn, String id) throws SQLException {
+        String query = "SELECT date, status FROM Attendance WHERE employee_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                StringBuilder sb = new StringBuilder("Attendance for employee ID " + id + ":\n");
+                while (rs.next()) {
+                    sb.append("Date: ").append(rs.getString("date")).append(", Status: ").append(rs.getString("status")).append("\n");
+                }
+                displayArea.setText(sb.toString());
+            }
+        }
+    }
+
+    private void addLeave(Connection conn, String id, String date) throws SQLException {
+        String query = "INSERT INTO Leaves (employee_id, leave_date) VALUES (?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, id);
+            pstmt.setString(2, date);
+            pstmt.executeUpdate();
+            displayArea.setText("Leave added successfully!");
+        }
+    }
+   //class for adding personal information//
+    class PersonalInfoScreen extends JFrame implements ActionListener {
+        JTextField addressField, phoneField, emailField, qualificationField, dobField, ageField;
+        JButton saveButton;
+        String employeeId;
+    
+        PersonalInfoScreen(String employeeId) {
+            this.employeeId = employeeId;
+            setTitle("Add Personal Information");
+            setSize(400, 300);
+            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            setLayout(new GridBagLayout());
+    
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.insets = new Insets(5, 5, 5, 5); 
+    
+            addressField = new JTextField(10);
+            phoneField = new JTextField(10);
+            emailField = new JTextField(10);
+            qualificationField = new JTextField(10);
+            dobField = new JTextField(10);
+            ageField = new JTextField(10);
+            saveButton = new JButton("Save");
+    
+            saveButton.addActionListener(this);
+    
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+            add(new JLabel("Address:", JLabel.RIGHT), gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 0;
+            add(addressField, gbc);
+    
+            gbc.gridx = 0;
+            gbc.gridy = 1;
+            add(new JLabel("Phone Number:", JLabel.RIGHT), gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 1;
+            add(phoneField, gbc);
+    
+            gbc.gridx = 0;
+            gbc.gridy = 2;
+            add(new JLabel("Email:", JLabel.RIGHT), gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 2;
+            add(emailField, gbc);
+    
+            gbc.gridx = 0;
+            gbc.gridy = 3;
+            add(new JLabel("Qualification:", JLabel.RIGHT), gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 3;
+            add(qualificationField, gbc);
+    
+            gbc.gridx = 0;
+            gbc.gridy = 4;
+            add(new JLabel("Date of Birth (YYYY-MM-DD):", JLabel.RIGHT), gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 4;
+            add(dobField, gbc);
+    
+            gbc.gridx = 0;
+            gbc.gridy = 5;
+            add(new JLabel("Age:", JLabel.RIGHT), gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 5;
+            add(ageField, gbc);
+    
+            gbc.gridx = 1;
+            gbc.gridy = 6;
+            gbc.gridwidth = 2;
+            gbc.anchor = GridBagConstraints.CENTER;
+            add(saveButton, gbc);
+    
+            setVisible(true);
+        }
+    
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (e.getSource() == saveButton) {
+                String address = addressField.getText();
+                String phone = phoneField.getText();
+                String email = emailField.getText();
+                String qualification = qualificationField.getText();
+                String dob = dobField.getText();
+                int age = Integer.parseInt(ageField.getText());
+                try (Connection conn = DriverManager.getConnection(EmployeeManagementSystem.DB_URL)) {
+                    String query = "INSERT INTO EmployeePersonalInfo (employee_id, address, phone, email, qualification, dob, age) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                        pstmt.setString(1, employeeId);
+                        pstmt.setString(2, address);
+                        pstmt.setString(3, phone);
+                        pstmt.setString(4, email);
+                        pstmt.setString(5, qualification);
+                        pstmt.setString(6, dob);
+                        pstmt.setInt(7, age);
+                        pstmt.executeUpdate();
+                        JOptionPane.showMessageDialog(this, "Personal information added successfully!");
+                        dispose();
+                    }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+                }
+            }
+        }
+        
+    }
+    
+    //employee class//
+    class Employee {
+        String id, name, department, role;
+        int age;
+        double salary;
+
+        Employee(String id, String name, int age, double salary, String department, String role) {
+            this.id = id;
+            this.name = name;
+            this.age = age;
+            this.salary = salary;
+            this.department = department;
+            this.role = role;
+        }
+    }
+}
